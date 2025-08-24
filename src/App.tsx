@@ -1,16 +1,340 @@
-function App() {
-  return (
-    <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-900 text-center mb-8">
-          Machine Knitting Calculator
-        </h1>
-        <p className="text-center text-gray-600">
-          Professional machine knitting calculator with Japanese notation support
-        </p>
-      </div>
-    </div>
-  )
+import { useState, useMemo } from 'react';
+import { Calculator, Info, Copy } from 'lucide-react';
+
+// Types
+interface ShapingSegment {
+  stitches: number;
+  frequency: number;
+  repetitions: number;
 }
 
-export default App
+interface ShapingResult {
+  castOff: number;
+  gradualSegments: ShapingSegment[];
+  japaneseNotation: string;
+  writtenInstructions: string[];
+  totalRowsUsed: number;
+  isValid: boolean;
+  warnings: string[];
+}
+
+// Core calculation engine
+class MagicFormulaCalculator {
+  static calculate(stitches: number, rows: number, distribution: 'early_extra' | 'late_extra'): ShapingResult {
+    // Input validation
+    if (stitches <= 0 || rows <= 0) {
+      return {
+        castOff: 0,
+        gradualSegments: [],
+        japaneseNotation: '',
+        writtenInstructions: ['Invalid input: stitches and rows must be positive'],
+        totalRowsUsed: 0,
+        isValid: false,
+        warnings: []
+      };
+    }
+
+    // Reserve at least 1 row at the end for plain knitting
+    const availableRowsForShaping = Math.max(1, rows - 1);
+    
+    // Machine knitting: decreases happen every other row (EOR)
+    const availableDecreasePoints = Math.floor(availableRowsForShaping / 2);
+    
+    // Apply Magic Formula to distribute stitches across available EOR points
+    const segments: ShapingSegment[] = [];
+    
+    if (stitches > 0 && availableDecreasePoints > 0) {
+      // Use Magic Formula: distribute stitches across available decrease points
+      const a = stitches; // stitches to distribute
+      const b = availableDecreasePoints; // available decrease points
+      const c = Math.floor(b / a); // base frequency (in 2-row units)
+      const d = b % a; // remainder decrease points
+      const e = a - d; // decreases at base frequency
+      const f = c + 1; // extended frequency
+
+      // Create segments - frequency is in actual rows (multiply by 2)
+      if (e > 0) {
+        segments.push({
+          stitches: 1,
+          frequency: c * 2,
+          repetitions: e
+        });
+      }
+      
+      if (d > 0) {
+        segments.push({
+          stitches: 1,
+          frequency: f * 2,
+          repetitions: d
+        });
+      }
+      
+      // Apply distribution preference
+      if (distribution === 'early_extra' && segments.length === 2) {
+        // Put larger frequency first (more spacing = later decreases)
+        if (segments[0].frequency < segments[1].frequency) {
+          [segments[0], segments[1]] = [segments[1], segments[0]];
+        }
+      }
+      // late_extra keeps smaller frequency first (default Magic Formula order)
+    }
+
+    // Generate Japanese notation
+    const notation = segments.map(seg => 
+      `-${seg.stitches}/${seg.frequency}/${seg.repetitions}`
+    ).join(', ');
+
+    // Generate written instructions
+    const instructions: string[] = [];
+    segments.forEach(seg => {
+      const stitchText = seg.stitches === 1 ? '1 stitch' : `${seg.stitches} stitches`;
+      instructions.push(`Decrease ${stitchText} every ${seg.frequency} rows, ${seg.repetitions} times`);
+    });
+
+    // Validation and warnings
+    const totalRowsUsed = segments.reduce((sum, seg) => sum + (seg.frequency * seg.repetitions), 0);
+    const warnings: string[] = [];
+    
+    if (totalRowsUsed > availableRowsForShaping) {
+      warnings.push('Shaping exceeds available rows - adjust parameters');
+    }
+    
+    // Check for unrealistic decrease rates per point
+    const maxStitchesPerPoint = Math.max(...segments.map(seg => seg.stitches), 0);
+    if (maxStitchesPerPoint > 8) {
+      warnings.push('Very large decreases per point - consider more rows for smoother curve');
+    }
+    
+    if (availableDecreasePoints === 0) {
+      warnings.push('Not enough rows for EOR decreases - need at least 2 rows');
+    }
+
+    if (rows < 2) {
+      warnings.push('Need at least 2 rows total (1 for shaping + 1 plain row)');
+    }
+
+    return {
+      castOff: 0,
+      gradualSegments: segments,
+      japaneseNotation: notation,
+      writtenInstructions: instructions,
+      totalRowsUsed,
+      isValid: totalRowsUsed <= availableRowsForShaping && stitches > 0 && rows >= 2,
+      warnings
+    };
+  }
+}
+
+// Main App Component
+export default function App() {
+  const [stitches, setStitches] = useState<number>(50);
+  const [rows, setRows] = useState<number>(120);
+  const [operation, setOperation] = useState<'decrease' | 'increase'>('decrease');
+  const [distribution, setDistribution] = useState<'early_extra' | 'late_extra'>('late_extra');
+  const [showInstructions, setShowInstructions] = useState<boolean>(true);
+
+  // Calculate results
+  const result = useMemo(() => {
+    return MagicFormulaCalculator.calculate(stitches, rows, distribution);
+  }, [stitches, rows, distribution]);
+
+  // Copy to clipboard
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Header */}
+        <header className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Calculator className="w-8 h-8 text-indigo-600" />
+            <h1 className="text-3xl font-bold text-gray-900">Machine Knitting Calculator</h1>
+          </div>
+          <p className="text-gray-600">Professional stitch distribution using Japanese notation</p>
+        </header>
+
+        <div className="grid lg:grid-cols-5 gap-8">
+          {/* Input Panel */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold mb-6 text-gray-800">Calculation Inputs</h2>
+              
+              {/* Basic Inputs */}
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Operation Type
+                  </label>
+                  <div className="flex bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setOperation('decrease')}
+                      className={`flex-1 px-4 py-2 rounded-md transition-all ${
+                        operation === 'decrease' 
+                          ? 'bg-white shadow text-indigo-600 font-medium' 
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      Decrease
+                    </button>
+                    <button
+                      onClick={() => setOperation('increase')}
+                      className={`flex-1 px-4 py-2 rounded-md transition-all ${
+                        operation === 'increase' 
+                          ? 'bg-white shadow text-indigo-600 font-medium' 
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      Increase
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="stitches" className="block text-sm font-medium text-gray-700 mb-2">
+                    Stitches to {operation}
+                  </label>
+                  <input
+                    type="number"
+                    id="stitches"
+                    value={stitches}
+                    onChange={(e) => setStitches(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                    min="1"
+                    max="999"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="rows" className="block text-sm font-medium text-gray-700 mb-2">
+                    Over rows
+                  </label>
+                  <input
+                    type="number"
+                    id="rows"
+                    value={rows}
+                    onChange={(e) => setRows(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                    min="1"
+                    max="9999"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Distribution Method
+                  </label>
+                  <select
+                    value={distribution}
+                    onChange={(e) => setDistribution(e.target.value as any)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="late_extra">Standard (gradual start)</option>
+                    <option value="early_extra">Early Extra (aggressive start)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Results Panel */}
+          <div className="lg:col-span-3">
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-800">Results</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowInstructions(!showInstructions)}
+                    className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                  >
+                    {showInstructions ? 'Hide' : 'Show'} Instructions
+                  </button>
+                </div>
+              </div>
+
+              {result.isValid ? (
+                <div className="space-y-6">
+                  {/* Japanese Notation */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-medium text-gray-800">Japanese Notation</h3>
+                      <button
+                        onClick={() => copyToClipboard(result.japaneseNotation)}
+                        className="flex items-center gap-1 px-2 py-1 text-sm text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                      >
+                        <Copy className="w-4 h-4" />
+                        Copy
+                      </button>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <code className="text-xl font-mono text-gray-800">{result.japaneseNotation}</code>
+                    </div>
+                  </div>
+
+                  {/* Written Instructions */}
+                  {showInstructions && (
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-800 mb-2">Written Instructions</h3>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <ol className="space-y-1">
+                          {result.writtenInstructions.map((instruction, index) => (
+                            <li key={index} className="text-gray-700">
+                              {index + 1}. {instruction}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Summary */}
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                    <div>
+                      <div className="text-sm text-gray-500">Shaping Rows</div>
+                      <div className="text-lg font-medium">{result.totalRowsUsed} / {Math.max(1, rows - 1)}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500">Plain Rows</div>
+                      <div className="text-lg font-medium">{rows - result.totalRowsUsed}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500">Total Rows</div>
+                      <div className="text-lg font-medium">{rows}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  Enter valid parameters to see calculations
+                </div>
+              )}
+
+              {/* Warnings */}
+              {result.warnings.length > 0 && (
+                <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-medium text-amber-800 mb-1">Warnings</h4>
+                      <ul className="text-sm text-amber-700 space-y-1">
+                        {result.warnings.map((warning, index) => (
+                          <li key={index}>• {warning}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="mt-12 text-center text-gray-600">
+          <p>Designed for flatbed domestic and industrial manual knitting machines</p>
+        </footer>
+      </div>
+    </div>
+  );
+}
