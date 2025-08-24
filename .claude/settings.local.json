@@ -10,7 +10,11 @@
       "Bash(git pull:*)",
       "Bash(gh api:*)",
       "Bash(gh auth:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run dev:*)",
+      "Bash(gh run list:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
