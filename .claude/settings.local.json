@@ -7,7 +7,10 @@
       "Bash(git push:*)",
       "Bash(git checkout:*)",
       "Bash(npm install)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(gh api:*)",
+      "Bash(gh auth:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
