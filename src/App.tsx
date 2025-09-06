@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Calculator, Info, Copy } from 'lucide-react';
 
 // Types
@@ -20,7 +20,7 @@ interface ShapingResult {
 
 // Core calculation engine
 class MagicFormulaCalculator {
-  static calculate(stitches: number, rows: number, distribution: 'early_extra' | 'late_extra', operation: 'decrease' | 'increase'): ShapingResult {
+  static calculate(stitches: number, rows: number, distribution: 'early_extra' | 'late_extra'): ShapingResult {
     // Input validation
     if (stitches <= 0 || rows <= 0) {
       return {
@@ -80,17 +80,15 @@ class MagicFormulaCalculator {
     }
 
     // Generate Japanese notation
-    const operationSymbol = operation === 'increase' ? '' : '-';
     const notation = segments.map(seg => 
-      `${operationSymbol}${seg.stitches}/${seg.frequency}/${seg.repetitions}`
+      `-${seg.stitches}/${seg.frequency}/${seg.repetitions}`
     ).join(', ');
 
     // Generate written instructions
-    const operationText = operation === 'increase' ? 'Increase' : 'Decrease';
     const instructions: string[] = [];
     segments.forEach(seg => {
       const stitchText = seg.stitches === 1 ? '1 stitch' : `${seg.stitches} stitches`;
-      instructions.push(`${operationText} ${stitchText} every ${seg.frequency} rows, ${seg.repetitions} times`);
+      instructions.push(`Decrease ${stitchText} every ${seg.frequency} rows, ${seg.repetitions} times`);
     });
 
     // Validation and warnings
@@ -137,8 +135,8 @@ export default function App() {
 
   // Calculate results
   const result = useMemo(() => {
-    return MagicFormulaCalculator.calculate(stitches, rows, distribution, operation);
-  }, [stitches, rows, distribution, operation]);
+    return MagicFormulaCalculator.calculate(stitches, rows, distribution);
+  }, [stitches, rows, distribution]);
 
   // Copy to clipboard
   const copyToClipboard = (text: string) => {
