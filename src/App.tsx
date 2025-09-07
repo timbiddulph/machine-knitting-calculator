@@ -44,7 +44,41 @@ class MagicFormulaCalculator {
     const segments: ShapingSegment[] = [];
     
     if (stitches > 0 && availableDecreasePoints > 0) {
-      if (stitches < availableDecreasePoints) {
+      if (stitches > availableRowsForShaping && stitches > availableDecreasePoints) {
+        // Special case: More stitches than both available rows AND decrease points
+        // Use mixed approach: distribute stitches across decrease points with varying amounts
+        const baseStitchesPerPoint = Math.floor(stitches / availableDecreasePoints);
+        const extraStitches = stitches % availableDecreasePoints;
+        
+        // Some points get base amount, others get base + 1
+        const pointsWithBase = availableDecreasePoints - extraStitches;
+        
+        // Aggressive start: larger decreases first, then smaller
+        if (extraStitches > 0) {
+          segments.push({
+            stitches: baseStitchesPerPoint + 1,
+            frequency: 2,
+            repetitions: extraStitches
+          });
+        }
+        
+        if (baseStitchesPerPoint > 0 && pointsWithBase > 0) {
+          segments.push({
+            stitches: baseStitchesPerPoint,
+            frequency: 2,
+            repetitions: pointsWithBase
+          });
+        }
+        
+        // Apply distribution preference
+        if (distribution === 'early_extra' && segments.length === 2) {
+          // Gentle start: put smaller stitches first (gradual build-up)
+          if (segments[0].stitches > segments[1].stitches) {
+            [segments[0], segments[1]] = [segments[1], segments[0]];
+          }
+        }
+        // Aggressive start (late_extra) keeps larger stitches first (default order)
+      } else if (stitches < availableDecreasePoints) {
         // Standard case: fewer stitches than decrease points - use Magic Formula
         const a = stitches; // stitches to distribute
         const b = availableDecreasePoints; // available decrease points
@@ -141,7 +175,12 @@ class MagicFormulaCalculator {
     const totalRowsUsed = segments.reduce((sum, seg) => sum + (seg.frequency * seg.repetitions), 0);
     const warnings: string[] = [];
     
-    if (totalRowsUsed > availableRowsForShaping) {
+    if (stitches > availableRowsForShaping && stitches > availableDecreasePoints) {
+      const maxStitchesPerPoint = Math.max(...segments.map(seg => seg.stitches));
+      if (maxStitchesPerPoint > 8) {
+        warnings.push(`Very large decreases required: up to ${maxStitchesPerPoint} stitches per decrease point`);
+      }
+    } else if (totalRowsUsed > availableRowsForShaping) {
       warnings.push('Shaping exceeds available rows - adjust parameters');
     }
     
