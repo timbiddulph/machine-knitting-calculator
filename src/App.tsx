@@ -44,39 +44,83 @@ class MagicFormulaCalculator {
     const segments: ShapingSegment[] = [];
     
     if (stitches > 0 && availableDecreasePoints > 0) {
-      // Use Magic Formula: distribute stitches across available decrease points
-      const a = stitches; // stitches to distribute
-      const b = availableDecreasePoints; // available decrease points
-      const c = Math.floor(b / a); // base frequency (in 2-row units)
-      const d = b % a; // remainder decrease points
-      const e = a - d; // decreases at base frequency
-      const f = c + 1; // extended frequency
+      if (stitches < availableDecreasePoints) {
+        // Standard case: fewer stitches than decrease points - use Magic Formula
+        const a = stitches; // stitches to distribute
+        const b = availableDecreasePoints; // available decrease points
+        const c = Math.floor(b / a); // base frequency (in 2-row units)
+        const d = b % a; // remainder decrease points
+        const e = a - d; // decreases at base frequency
+        const f = c + 1; // extended frequency
 
-      // Create segments - frequency is in actual rows (multiply by 2)
-      if (e > 0) {
+        // Create segments - frequency is in actual rows (multiply by 2)
+        if (e > 0) {
+          segments.push({
+            stitches: 1,
+            frequency: c * 2,
+            repetitions: e
+          });
+        }
+        
+        if (d > 0) {
+          segments.push({
+            stitches: 1,
+            frequency: f * 2,
+            repetitions: d
+          });
+        }
+        
+        // Apply distribution preference
+        if (distribution === 'early_extra' && segments.length === 2) {
+          // Put larger frequency first (more spacing = later decreases)
+          if (segments[0].frequency < segments[1].frequency) {
+            [segments[0], segments[1]] = [segments[1], segments[0]];
+          }
+        }
+      } else if (stitches === availableDecreasePoints) {
+        // Exact match: 1 stitch per decrease point - use EOR
         segments.push({
           stitches: 1,
-          frequency: c * 2,
-          repetitions: e
+          frequency: 2,
+          repetitions: stitches
         });
-      }
-      
-      if (d > 0) {
-        segments.push({
-          stitches: 1,
-          frequency: f * 2,
-          repetitions: d
-        });
-      }
-      
-      // Apply distribution preference
-      if (distribution === 'early_extra' && segments.length === 2) {
-        // Put larger frequency first (more spacing = later decreases)
-        if (segments[0].frequency < segments[1].frequency) {
-          [segments[0], segments[1]] = [segments[1], segments[0]];
+      } else {
+        // More stitches than decrease points
+        // Use every-row decreases for some, EOR for the rest to fit within available rows
+        const extraStitches = stitches - availableDecreasePoints;
+        
+        // We need to use some every-row decreases (which use 1 row each)
+        // and some EOR decreases (which use 2 rows each)
+        // Let x = every-row decreases, y = EOR decreases
+        // x + y = stitches
+        // x + 2y ≤ availableRowsForShaping
+        // Solve for optimal distribution
+        
+        // Solve: x + y = stitches, x + 2y ≤ availableRowsForShaping
+        // From first equation: x = stitches - y
+        // Substituting: (stitches - y) + 2y ≤ availableRowsForShaping
+        // So: stitches + y ≤ availableRowsForShaping
+        // Therefore: y ≤ availableRowsForShaping - stitches
+        const maxEorDecreses = availableRowsForShaping - stitches;
+        const eorDecreses = Math.min(maxEorDecreses, stitches);
+        const everyRowDecreses = stitches - eorDecreses;
+        
+        if (everyRowDecreses > 0) {
+          segments.push({
+            stitches: 1,
+            frequency: 1,
+            repetitions: everyRowDecreses
+          });
+        }
+        
+        if (maxEorDecreses > 0) {
+          segments.push({
+            stitches: 1,
+            frequency: 2,
+            repetitions: maxEorDecreses
+          });
         }
       }
-      // late_extra keeps smaller frequency first (default Magic Formula order)
     }
 
     // Generate Japanese notation
