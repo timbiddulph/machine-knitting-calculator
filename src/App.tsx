@@ -232,8 +232,8 @@ export default function App() {
                     onChange={(e) => setDistribution(e.target.value as any)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   >
-                    <option value="late_extra">Standard (gradual start)</option>
-                    <option value="early_extra">Early Extra (aggressive start)</option>
+                    <option value="late_extra">Aggressive start</option>
+                    <option value="early_extra">Gentle start</option>
                   </select>
                 </div>
               </div>
