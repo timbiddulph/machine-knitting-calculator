@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Calculator, Info, Copy } from 'lucide-react';
 
 // Types
@@ -121,10 +121,9 @@ class MagicFormulaCalculator {
       } else {
         // More stitches than decrease points
         // Use every-row decreases for some, EOR for the rest to fit within available rows
-        const extraStitches = stitches - availableDecreasePoints;
         
         // We need to use some every-row decreases (which use 1 row each)
-        // and some EOR decreases (which use 2 rows each)
+        // and some EOR decreases (which use 2 rows each)  
         // Let x = every-row decreases, y = EOR decreases
         // x + y = stitches
         // x + 2y ≤ availableRowsForShaping
