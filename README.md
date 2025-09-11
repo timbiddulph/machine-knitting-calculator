@@ -2,7 +2,9 @@
 
 Professional stitch distribution calculator using Japanese notation for flatbed domestic and industrial manual knitting machines.
 
-[![Deploy to GitHub Pages](https://github.com/username/machine-knitting-calculator/actions/workflows/deploy.yml/badge.svg)](https://github.com/username/machine-knitting-calculator/actions/workflows/deploy.yml)
+🌐 **[Try it live!](https://timbiddulph.github.io/machine-knitting-calculator/)**
+
+[![Deploy to GitHub Pages](https://github.com/timbiddulph/machine-knitting-calculator/actions/workflows/deploy.yml/badge.svg)](https://github.com/timbiddulph/machine-knitting-calculator/actions/workflows/deploy.yml)
 
 ## 🚀 Features
 
@@ -20,6 +22,16 @@ Professional stitch distribution calculator using Japanese notation for flatbed 
 
 **Input**: 50 stitches over 26 rows  
 **Output**: `-4/2/10, -5/2/2` (More aggressive shaping with multiple rates)
+
+## 🧪 Try It Out
+
+Visit **[timbiddulph.github.io/machine-knitting-calculator](https://timbiddulph.github.io/machine-knitting-calculator/)** to test the calculator with your own knitting projects!
+
+Perfect for:
+- Pattern designers creating commercial knitting patterns
+- Home knitters with domestic machines (Brother, Singer, etc.)
+- Industrial machine operators
+- Anyone working with Japanese knitting notation
 
 ## 🛠 Development
 
