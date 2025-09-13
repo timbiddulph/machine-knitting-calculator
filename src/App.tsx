@@ -18,6 +18,91 @@ interface ShapingResult {
   warnings: string[];
 }
 
+interface CrewNeckResult {
+  castOff: number;
+  everyRowDecrease: number;
+  eorDecrease: number;
+  japaneseNotation: string;
+  writtenInstructions: string[];
+  totalRowsUsed: number;
+  isValid: boolean;
+  warnings: string[];
+}
+
+// Crew neck calculation engine
+class CrewNeckCalculator {
+  static calculate(totalStitchesToDecrease: number): CrewNeckResult {
+    // Input validation
+    if (totalStitchesToDecrease <= 0) {
+      return {
+        castOff: 0,
+        everyRowDecrease: 0,
+        eorDecrease: 0,
+        japaneseNotation: '',
+        writtenInstructions: ['Invalid input: stitches must be positive'],
+        totalRowsUsed: 0,
+        isValid: false,
+        warnings: []
+      };
+    }
+
+    // Per side calculations using your method
+    const castOff = Math.floor(totalStitchesToDecrease / 4);
+    const everyRowDecrease = Math.floor(totalStitchesToDecrease / 2);
+    const eorDecrease = totalStitchesToDecrease - castOff - everyRowDecrease;
+
+    // Calculate total rows used
+    const totalRowsUsed = everyRowDecrease + (eorDecrease * 2);
+
+    // Generate Japanese notation (per side)
+    const notationParts: string[] = [];
+    if (castOff > 0) {
+      notationParts.push(`-${castOff}`);
+    }
+    if (everyRowDecrease > 0) {
+      notationParts.push(`-1/1/${everyRowDecrease}`);
+    }
+    if (eorDecrease > 0) {
+      notationParts.push(`-1/2/${eorDecrease}`);
+    }
+    const japaneseNotation = notationParts.join(', ');
+
+    // Generate written instructions
+    const instructions: string[] = [];
+    instructions.push(`Per side calculations for ${totalStitchesToDecrease} total stitches:`);
+    if (castOff > 0) {
+      instructions.push(`Cast off ${castOff} stitches at center`);
+    }
+    if (everyRowDecrease > 0) {
+      instructions.push(`Decrease 1 stitch every row, ${everyRowDecrease} times`);
+    }
+    if (eorDecrease > 0) {
+      instructions.push(`Decrease 1 stitch every other row, ${eorDecrease} times`);
+    }
+    instructions.push(`Total rows for neck shaping: approximately ${totalRowsUsed}`);
+
+    // Warnings
+    const warnings: string[] = [];
+    if (totalStitchesToDecrease < 8) {
+      warnings.push('Very small neck opening - consider more stitches for adult garment');
+    }
+    if (eorDecrease === 0) {
+      warnings.push('No EOR decreases - curve may be too steep');
+    }
+
+    return {
+      castOff,
+      everyRowDecrease,
+      eorDecrease,
+      japaneseNotation,
+      writtenInstructions: instructions,
+      totalRowsUsed,
+      isValid: true,
+      warnings
+    };
+  }
+}
+
 // Core calculation engine
 class MagicFormulaCalculator {
   static calculate(stitches: number, rows: number, distribution: 'early_extra' | 'late_extra', operation: 'decrease' | 'increase'): ShapingResult {
@@ -216,11 +301,18 @@ export default function App() {
   const [operation, setOperation] = useState<'decrease' | 'increase'>('decrease');
   const [distribution, setDistribution] = useState<'early_extra' | 'late_extra'>('late_extra');
   const [showInstructions, setShowInstructions] = useState<boolean>(true);
+  const [calculationType, setCalculationType] = useState<'straight' | 'crew_neck'>('straight');
+  const [neckStitches, setNeckStitches] = useState<number>(20);
 
   // Calculate results
   const result = useMemo(() => {
     return MagicFormulaCalculator.calculate(stitches, rows, distribution, operation);
   }, [stitches, rows, distribution, operation]);
+
+  // Calculate crew neck results
+  const crewNeckResult = useMemo(() => {
+    return CrewNeckCalculator.calculate(neckStitches);
+  }, [neckStitches]);
 
   // Copy to clipboard
   const copyToClipboard = (text: string) => {
@@ -249,75 +341,129 @@ export default function App() {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Operation Type
+                    Calculation Type
                   </label>
                   <div className="flex bg-gray-100 rounded-lg p-1">
                     <button
-                      onClick={() => setOperation('decrease')}
+                      onClick={() => setCalculationType('straight')}
                       className={`flex-1 px-4 py-2 rounded-md transition-all ${
-                        operation === 'decrease' 
-                          ? 'bg-white shadow text-indigo-600 font-medium' 
+                        calculationType === 'straight'
+                          ? 'bg-white shadow text-indigo-600 font-medium'
                           : 'text-gray-600'
                       }`}
                     >
-                      Decrease
+                      Straight Line
                     </button>
                     <button
-                      onClick={() => setOperation('increase')}
+                      onClick={() => setCalculationType('crew_neck')}
                       className={`flex-1 px-4 py-2 rounded-md transition-all ${
-                        operation === 'increase' 
-                          ? 'bg-white shadow text-indigo-600 font-medium' 
+                        calculationType === 'crew_neck'
+                          ? 'bg-white shadow text-indigo-600 font-medium'
                           : 'text-gray-600'
                       }`}
                     >
-                      Increase
+                      Crew Neck
                     </button>
                   </div>
                 </div>
 
-                <div>
-                  <label htmlFor="stitches" className="block text-sm font-medium text-gray-700 mb-2">
-                    Stitches to {operation}
-                  </label>
-                  <input
-                    type="number"
-                    id="stitches"
-                    value={stitches}
-                    onChange={(e) => setStitches(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
-                    min="1"
-                    max="999"
-                  />
-                </div>
+                {calculationType === 'straight' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Operation Type
+                    </label>
+                    <div className="flex bg-gray-100 rounded-lg p-1">
+                      <button
+                        onClick={() => setOperation('decrease')}
+                        className={`flex-1 px-4 py-2 rounded-md transition-all ${
+                          operation === 'decrease'
+                            ? 'bg-white shadow text-indigo-600 font-medium'
+                            : 'text-gray-600'
+                        }`}
+                      >
+                        Decrease
+                      </button>
+                      <button
+                        onClick={() => setOperation('increase')}
+                        className={`flex-1 px-4 py-2 rounded-md transition-all ${
+                          operation === 'increase'
+                            ? 'bg-white shadow text-indigo-600 font-medium'
+                            : 'text-gray-600'
+                        }`}
+                      >
+                        Increase
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-                <div>
-                  <label htmlFor="rows" className="block text-sm font-medium text-gray-700 mb-2">
-                    Over rows
-                  </label>
-                  <input
-                    type="number"
-                    id="rows"
-                    value={rows}
-                    onChange={(e) => setRows(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
-                    min="1"
-                    max="9999"
-                  />
-                </div>
+                {calculationType === 'straight' && (
+                  <>
+                    <div>
+                      <label htmlFor="stitches" className="block text-sm font-medium text-gray-700 mb-2">
+                        Stitches to {operation}
+                      </label>
+                      <input
+                        type="number"
+                        id="stitches"
+                        value={stitches}
+                        onChange={(e) => setStitches(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                        min="1"
+                        max="999"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Distribution Method
-                  </label>
-                  <select
-                    value={distribution}
-                    onChange={(e) => setDistribution(e.target.value as any)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="late_extra">Aggressive start</option>
-                    <option value="early_extra">Gentle start</option>
-                  </select>
-                </div>
+                    <div>
+                      <label htmlFor="rows" className="block text-sm font-medium text-gray-700 mb-2">
+                        Over rows
+                      </label>
+                      <input
+                        type="number"
+                        id="rows"
+                        value={rows}
+                        onChange={(e) => setRows(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                        min="1"
+                        max="9999"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Distribution Method
+                      </label>
+                      <select
+                        value={distribution}
+                        onChange={(e) => setDistribution(e.target.value as any)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        <option value="late_extra">Aggressive start</option>
+                        <option value="early_extra">Gentle start</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {calculationType === 'crew_neck' && (
+                  <div>
+                    <label htmlFor="neckStitches" className="block text-sm font-medium text-gray-700 mb-2">
+                      Total stitches to decrease
+                    </label>
+                    <input
+                      type="number"
+                      id="neckStitches"
+                      value={neckStitches}
+                      onChange={(e) => setNeckStitches(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                      min="1"
+                      max="999"
+                    />
+                    <p className="mt-2 text-sm text-gray-500">
+                      Calculations are per side. Uses your method: 1/4 cast off, 1/2 every row, remainder EOR.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -337,7 +483,7 @@ export default function App() {
                 </div>
               </div>
 
-              {result.isValid ? (
+{calculationType === 'straight' && result.isValid ? (
                 <div className="space-y-6">
                   {/* Japanese Notation */}
                   <div>
@@ -388,6 +534,57 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+              ) : calculationType === 'crew_neck' && crewNeckResult.isValid ? (
+                <div className="space-y-6">
+                  {/* Japanese Notation */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-medium text-gray-800">Japanese Notation (per side)</h3>
+                      <button
+                        onClick={() => copyToClipboard(crewNeckResult.japaneseNotation)}
+                        className="flex items-center gap-1 px-2 py-1 text-sm text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                      >
+                        <Copy className="w-4 h-4" />
+                        Copy
+                      </button>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <code className="text-xl font-mono text-gray-800">{crewNeckResult.japaneseNotation}</code>
+                    </div>
+                  </div>
+
+                  {/* Written Instructions */}
+                  {showInstructions && (
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-800 mb-2">Written Instructions</h3>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <ul className="space-y-1">
+                          {crewNeckResult.writtenInstructions.map((instruction, index) => (
+                            <li key={index} className="text-gray-700">
+                              • {instruction}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Summary */}
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                    <div>
+                      <div className="text-sm text-gray-500">Cast Off</div>
+                      <div className="text-lg font-medium">{crewNeckResult.castOff} stitches</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500">Every Row</div>
+                      <div className="text-lg font-medium">{crewNeckResult.everyRowDecrease} times</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500">EOR</div>
+                      <div className="text-lg font-medium">{crewNeckResult.eorDecrease} times</div>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   Enter valid parameters to see calculations
@@ -395,14 +592,15 @@ export default function App() {
               )}
 
               {/* Warnings */}
-              {result.warnings.length > 0 && (
+              {((calculationType === 'straight' && result.warnings.length > 0) ||
+                (calculationType === 'crew_neck' && crewNeckResult.warnings.length > 0)) && (
                 <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                   <div className="flex items-start gap-2">
                     <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div>
                       <h4 className="text-sm font-medium text-amber-800 mb-1">Warnings</h4>
                       <ul className="text-sm text-amber-700 space-y-1">
-                        {result.warnings.map((warning, index) => (
+                        {(calculationType === 'straight' ? result.warnings : crewNeckResult.warnings).map((warning, index) => (
                           <li key={index}>• {warning}</li>
                         ))}
                       </ul>
