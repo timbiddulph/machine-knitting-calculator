@@ -29,6 +29,7 @@ interface CrewNeckResult {
   warnings: string[];
 }
 
+
 // Crew neck calculation engine
 class CrewNeckCalculator {
   static calculate(totalStitchesToDecrease: number): CrewNeckResult {
@@ -102,6 +103,7 @@ class CrewNeckCalculator {
     };
   }
 }
+
 
 // Core calculation engine
 class MagicFormulaCalculator {
@@ -294,6 +296,7 @@ class MagicFormulaCalculator {
   }
 }
 
+
 // Main App Component
 export default function App() {
   const [stitches, setStitches] = useState<number>(50);
@@ -314,6 +317,7 @@ export default function App() {
     return CrewNeckCalculator.calculate(neckStitches);
   }, [neckStitches]);
 
+
   // Copy to clipboard
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -331,9 +335,9 @@ export default function App() {
           <p className="text-gray-600">Professional stitch distribution using Japanese notation</p>
         </header>
 
-        <div className="grid lg:grid-cols-5 gap-8">
+        <div className="grid lg:grid-cols-3 gap-8">
           {/* Input Panel */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-semibold mb-6 text-gray-800">Calculation Inputs</h2>
               
@@ -399,6 +403,7 @@ export default function App() {
 
                 {calculationType === 'straight' && (
                   <>
+
                     <div>
                       <label htmlFor="stitches" className="block text-sm font-medium text-gray-700 mb-2">
                         Stitches to {operation}
@@ -446,30 +451,33 @@ export default function App() {
                 )}
 
                 {calculationType === 'crew_neck' && (
-                  <div>
-                    <label htmlFor="neckStitches" className="block text-sm font-medium text-gray-700 mb-2">
-                      Total stitches to decrease
-                    </label>
-                    <input
-                      type="number"
-                      id="neckStitches"
-                      value={neckStitches}
-                      onChange={(e) => setNeckStitches(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
-                      min="1"
-                      max="999"
-                    />
-                    <p className="mt-2 text-sm text-gray-500">
-                      Calculations are per side. Uses your method: 1/4 cast off, 1/2 every row, remainder EOR.
-                    </p>
-                  </div>
+                  <>
+
+                    <div>
+                      <label htmlFor="neckStitches" className="block text-sm font-medium text-gray-700 mb-2">
+                        Total stitches to decrease
+                      </label>
+                      <input
+                        type="number"
+                        id="neckStitches"
+                        value={neckStitches}
+                        onChange={(e) => setNeckStitches(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                        min="1"
+                        max="999"
+                      />
+                      <p className="mt-2 text-sm text-gray-500">
+                        Calculations are per side. Uses your method: 1/4 cast off, 1/2 every row, remainder EOR.
+                      </p>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
           </div>
 
           {/* Results Panel */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-800">Results</h2>
@@ -611,6 +619,7 @@ export default function App() {
             </div>
           </div>
         </div>
+
 
         {/* Footer */}
         <footer className="mt-12 text-center text-gray-600">
