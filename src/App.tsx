@@ -47,10 +47,11 @@ class CrewNeckCalculator {
       };
     }
 
-    // Per side calculations using your method
-    const castOff = Math.floor(totalStitchesToDecrease / 4);
-    const everyRowDecrease = Math.floor(totalStitchesToDecrease / 2);
-    const eorDecrease = totalStitchesToDecrease - castOff - everyRowDecrease;
+    // Per side calculations using 1/3 minimum cast-off rule
+    const castOff = Math.floor(totalStitchesToDecrease / 3);
+    const remainingStitches = totalStitchesToDecrease - castOff;
+    const everyRowDecrease = Math.floor(remainingStitches / 2);
+    const eorDecrease = remainingStitches - everyRowDecrease;
 
     // Calculate total rows used
     const totalRowsUsed = everyRowDecrease + (eorDecrease * 2);
@@ -71,9 +72,7 @@ class CrewNeckCalculator {
     // Generate written instructions
     const instructions: string[] = [];
     instructions.push(`Per side calculations for ${totalStitchesToDecrease} total stitches:`);
-    if (castOff > 0) {
-      instructions.push(`Cast off ${castOff} stitches at center`);
-    }
+    instructions.push(`Cast off: ${castOff} stitches (minimum 1/3 of total)`);
     if (everyRowDecrease > 0) {
       instructions.push(`Decrease 1 stitch every row, ${everyRowDecrease} times`);
     }
