@@ -21,7 +21,12 @@
       "Bash(curl:*)",
       "WebSearch",
       "Bash(node:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "WebFetch(domain:tutorials.knitpicks.com)",
+      "Bash(lsof:*)",
+      "Bash(npm run lint)",
+      "Bash(grep:*)",
+      "Bash(timeout 10s npm run dev)"
     ],
     "deny": [],
     "ask": []
