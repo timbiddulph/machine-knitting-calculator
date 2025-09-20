@@ -1,34 +1,85 @@
 import { useState, useMemo } from 'react';
-import { Calculator, Info, Copy } from 'lucide-react';
-import { OperationType, DistributionType, CalculationType } from './types';
+import { Calculator, Info, Copy, HelpCircle } from 'lucide-react';
+import { OperationType, DistributionType, CalculationType, MeasurementUnit, GaugeSettings, MeasurementInputs } from './types';
 import { MagicFormulaCalculator } from './calculators/MagicFormulaCalculator';
 import { CrewNeckCalculator } from './calculators/CrewNeckCalculator';
 
 
 // Main App Component
 export default function App() {
-  const [stitches, setStitches] = useState<number>(50);
-  const [rows, setRows] = useState<number>(120);
   const [operation, setOperation] = useState<OperationType>('decrease');
   const [distribution, setDistribution] = useState<DistributionType>('late_extra');
   const [showInstructions, setShowInstructions] = useState<boolean>(true);
   const [calculationType, setCalculationType] = useState<CalculationType>('straight');
-  const [neckStitches, setNeckStitches] = useState<number>(20);
 
-  // Calculate results
+  // Gauge and measurement states (persistent across calculation types)
+  const [measurementUnit, setMeasurementUnit] = useState<MeasurementUnit>('cm');
+  const [gauge, setGauge] = useState<GaugeSettings>({
+    stitchesPerCm: 2.5,
+    rowsPerCm: 3.5
+  });
+  const [measurements, setMeasurements] = useState<MeasurementInputs>({
+    widthChange: 10,
+    heightAvailable: 20
+  });
+  const [neckMeasurement, setNeckMeasurement] = useState<number>(8);
+
+  // Convert measurements to stitches/rows
+  const convertedStitches = useMemo(() => {
+    const unitMultiplier = measurementUnit === 'inches' ? 2.54 : 1; // Convert inches to cm
+    const cmValue = measurements.widthChange * unitMultiplier;
+    return Math.round(cmValue * gauge.stitchesPerCm);
+  }, [measurements.widthChange, measurementUnit, gauge.stitchesPerCm]);
+
+  const convertedRows = useMemo(() => {
+    const unitMultiplier = measurementUnit === 'inches' ? 2.54 : 1; // Convert inches to cm
+    const cmValue = measurements.heightAvailable * unitMultiplier;
+    return Math.round(cmValue * gauge.rowsPerCm);
+  }, [measurements.heightAvailable, measurementUnit, gauge.rowsPerCm]);
+
+  const convertedNeckStitches = useMemo(() => {
+    const unitMultiplier = measurementUnit === 'inches' ? 2.54 : 1; // Convert inches to cm
+    const cmValue = neckMeasurement * unitMultiplier;
+    return Math.round(cmValue * gauge.stitchesPerCm);
+  }, [neckMeasurement, measurementUnit, gauge.stitchesPerCm]);
+
+  // Calculate results using converted values
   const result = useMemo(() => {
-    return MagicFormulaCalculator.calculate(stitches, rows, distribution, operation);
-  }, [stitches, rows, distribution, operation]);
+    return MagicFormulaCalculator.calculate(convertedStitches, convertedRows, distribution, operation);
+  }, [convertedStitches, convertedRows, distribution, operation]);
 
   // Calculate crew neck results
   const crewNeckResult = useMemo(() => {
-    return CrewNeckCalculator.calculate(neckStitches);
-  }, [neckStitches]);
+    return CrewNeckCalculator.calculate(convertedNeckStitches);
+  }, [convertedNeckStitches]);
 
 
   // Copy to clipboard
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
+  };
+
+  // Tooltip component
+  const Tooltip = ({ children, content }: { children: React.ReactNode; content: string }) => {
+    const [isVisible, setIsVisible] = useState(false);
+
+    return (
+      <div className="relative inline-block">
+        <div
+          onMouseEnter={() => setIsVisible(true)}
+          onMouseLeave={() => setIsVisible(false)}
+          className="cursor-help"
+        >
+          {children}
+        </div>
+        {isVisible && (
+          <div className="absolute z-10 px-3 py-2 text-sm text-white bg-gray-900 rounded-lg shadow-lg -top-2 left-full ml-2 w-64">
+            {content}
+            <div className="absolute top-3 -left-1 w-2 h-2 bg-gray-900 rotate-45"></div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -47,14 +98,77 @@ export default function App() {
           {/* Input Panel */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold mb-6 text-gray-800">Calculation Inputs</h2>
-              
-              {/* Basic Inputs */}
+              {/* Gauge Settings - Always visible and persistent */}
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Calculation Type
-                  </label>
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="text-lg font-medium text-gray-800">Gauge</h3>
+                    <Tooltip content="Your knitting gauge - measure by knitting a swatch and counting stitches and rows per unit. This is crucial for accurate calculations.">
+                      <HelpCircle className="w-4 h-4 text-gray-400" />
+                    </Tooltip>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="flex items-center gap-1 mb-2">
+                      <label htmlFor="stitchesPerCm" className="block text-sm font-medium text-gray-700">
+                        Stitches per {measurementUnit === 'cm' ? 'cm' : 'inch'}
+                      </label>
+                      <Tooltip content="Count the number of stitches across 1cm (or 1 inch) in your gauge swatch. Use the same yarn and needle size as your project.">
+                        <HelpCircle className="w-3 h-3 text-gray-400" />
+                      </Tooltip>
+                    </div>
+                    <input
+                      type="number"
+                      id="stitchesPerCm"
+                      value={measurementUnit === 'cm' ? gauge.stitchesPerCm : (gauge.stitchesPerCm * 2.54).toFixed(1)}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        const cmValue = measurementUnit === 'cm' ? value : value / 2.54;
+                        setGauge(prev => ({ ...prev, stitchesPerCm: cmValue }));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      min="0.1"
+                      step="0.1"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1 mb-2">
+                      <label htmlFor="rowsPerCm" className="block text-sm font-medium text-gray-700">
+                        Rows per {measurementUnit === 'cm' ? 'cm' : 'inch'}
+                      </label>
+                      <Tooltip content="Count the number of rows across 1cm (or 1 inch) vertically in your gauge swatch. Include both knit and purl rows in your count.">
+                        <HelpCircle className="w-3 h-3 text-gray-400" />
+                      </Tooltip>
+                    </div>
+                    <input
+                      type="number"
+                      id="rowsPerCm"
+                      value={measurementUnit === 'cm' ? gauge.rowsPerCm : (gauge.rowsPerCm * 2.54).toFixed(1)}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 0;
+                        const cmValue = measurementUnit === 'cm' ? value : value / 2.54;
+                        setGauge(prev => ({ ...prev, rowsPerCm: cmValue }));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      min="0.1"
+                      step="0.1"
+                    />
+                  </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-800 mb-3">Calculation Inputs</h3>
+                  <div className="space-y-6">
+                    <div>
+                      <div className="flex items-center gap-1 mb-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Calculation Type
+                        </label>
+                        <Tooltip content="Straight Line: Even decreases across a specified height. Crew Neck: Curved neckline shaping with cast-off and gradual decreases.">
+                          <HelpCircle className="w-3 h-3 text-gray-400" />
+                        </Tooltip>
+                      </div>
                   <div className="flex bg-gray-100 rounded-lg p-1">
                     <button
                       onClick={() => setCalculationType('straight')}
@@ -81,9 +195,14 @@ export default function App() {
 
                 {calculationType === 'straight' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Operation Type
-                    </label>
+                    <div className="flex items-center gap-1 mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Operation Type
+                      </label>
+                      <Tooltip content="Decrease: Remove stitches to make fabric narrower. Increase: Add stitches to make fabric wider. Both use the same calculation logic.">
+                        <HelpCircle className="w-3 h-3 text-gray-400" />
+                      </Tooltip>
+                    </div>
                     <div className="flex bg-gray-100 rounded-lg p-1">
                       <button
                         onClick={() => setOperation('decrease')}
@@ -111,75 +230,145 @@ export default function App() {
 
                 {calculationType === 'straight' && (
                   <>
-
                     <div>
-                      <label htmlFor="stitches" className="block text-sm font-medium text-gray-700 mb-2">
-                        Stitches to {operation}
-                      </label>
+                      <div className="flex items-center gap-1 mb-2">
+                        <label htmlFor="widthChange" className="block text-sm font-medium text-gray-700">
+                          Width to {operation} ({measurementUnit})
+                        </label>
+                        <Tooltip content="The actual measurement to decrease or increase. For waist shaping, this might be 5-10cm. For sleeve tapering, could be 15-20cm.">
+                          <HelpCircle className="w-3 h-3 text-gray-400" />
+                        </Tooltip>
+                      </div>
                       <input
                         type="number"
-                        id="stitches"
-                        value={stitches}
-                        onChange={(e) => setStitches(Math.max(1, parseInt(e.target.value) || 1))}
+                        id="widthChange"
+                        value={measurements.widthChange}
+                        onChange={(e) => setMeasurements(prev => ({
+                          ...prev,
+                          widthChange: Math.max(0.1, parseFloat(e.target.value) || 0.1)
+                        }))}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
-                        min="1"
-                        max="999"
+                        min="0.1"
+                        step="0.1"
                       />
+                      <p className="mt-1 text-sm text-gray-500">
+                        Converts to {convertedStitches} stitches
+                      </p>
                     </div>
 
                     <div>
-                      <label htmlFor="rows" className="block text-sm font-medium text-gray-700 mb-2">
-                        Over rows
-                      </label>
+                      <div className="flex items-center gap-1 mb-2">
+                        <label htmlFor="heightAvailable" className="block text-sm font-medium text-gray-700">
+                          Height available ({measurementUnit})
+                        </label>
+                        <Tooltip content="The vertical distance you have to complete the shaping. For waist-to-bust, typically 15-20cm. For sleeve length, measure from underarm to wrist.">
+                          <HelpCircle className="w-3 h-3 text-gray-400" />
+                        </Tooltip>
+                      </div>
                       <input
                         type="number"
-                        id="rows"
-                        value={rows}
-                        onChange={(e) => setRows(Math.max(1, parseInt(e.target.value) || 1))}
+                        id="heightAvailable"
+                        value={measurements.heightAvailable}
+                        onChange={(e) => setMeasurements(prev => ({
+                          ...prev,
+                          heightAvailable: Math.max(0.1, parseFloat(e.target.value) || 0.1)
+                        }))}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
-                        min="1"
-                        max="9999"
+                        min="0.1"
+                        step="0.1"
                       />
+                      <p className="mt-1 text-sm text-gray-500">
+                        Converts to {convertedRows} rows
+                      </p>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                  </>
+                )}
+
+                {calculationType === 'straight' && (
+                  <div>
+                    <div className="flex items-center gap-1 mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
                         Distribution Method
                       </label>
-                      <select
-                        value={distribution}
-                        onChange={(e) => setDistribution(e.target.value as any)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      >
-                        <option value="late_extra">Aggressive start</option>
-                        <option value="early_extra">Gentle start</option>
-                      </select>
+                      <Tooltip content="Aggressive start: Larger decreases first, then smaller ones. Gentle start: Smaller decreases first, then larger ones. Choose based on desired shaping curve.">
+                        <HelpCircle className="w-3 h-3 text-gray-400" />
+                      </Tooltip>
                     </div>
-                  </>
+                    <select
+                      value={distribution}
+                      onChange={(e) => setDistribution(e.target.value as any)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="late_extra">Aggressive start</option>
+                      <option value="early_extra">Gentle start</option>
+                    </select>
+                  </div>
                 )}
 
                 {calculationType === 'crew_neck' && (
-                  <>
-
-                    <div>
-                      <label htmlFor="neckStitches" className="block text-sm font-medium text-gray-700 mb-2">
-                        Total stitches to decrease
+                  <div>
+                    <div className="flex items-center gap-1 mb-2">
+                      <label htmlFor="neckMeasurement" className="block text-sm font-medium text-gray-700">
+                        Total width to decrease ({measurementUnit})
                       </label>
-                      <input
-                        type="number"
-                        id="neckStitches"
-                        value={neckStitches}
-                        onChange={(e) => setNeckStitches(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
-                        min="1"
-                        max="999"
-                      />
-                      <p className="mt-2 text-sm text-gray-500">
-                        Calculations are per side. Uses your method: 1/4 cast off, 1/2 every row, remainder EOR.
-                      </p>
+                      <Tooltip content="The total width to be decreased for the neckline opening. For adults, typically 6-10cm depending on yarn weight and desired fit.">
+                        <HelpCircle className="w-3 h-3 text-gray-400" />
+                      </Tooltip>
                     </div>
-                  </>
+                    <input
+                      type="number"
+                      id="neckMeasurement"
+                      value={neckMeasurement}
+                      onChange={(e) => setNeckMeasurement(Math.max(0.1, parseFloat(e.target.value) || 0.1))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                      min="0.1"
+                      step="0.1"
+                    />
+                    <p className="mt-1 text-sm text-gray-500">
+                      Converts to {convertedNeckStitches} stitches
+                    </p>
+                    <p className="mt-2 text-sm text-gray-500">
+                      Calculations are per side. Uses 1/3 minimum cast-off rule: 1/3 cast off, remaining split between every row and EOR decreases.
+                    </p>
+                  </div>
                 )}
+                  </div>
+                </div>
+
+                {/* Unit Selection */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="flex items-center gap-1 mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Unit
+                    </label>
+                    <Tooltip content="Choose your preferred measurement unit. All inputs and calculations will update automatically when you switch units.">
+                      <HelpCircle className="w-3 h-3 text-gray-400" />
+                    </Tooltip>
+                  </div>
+                  <div className="flex bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setMeasurementUnit('cm')}
+                      className={`flex-1 px-4 py-2 rounded-md transition-all ${
+                        measurementUnit === 'cm'
+                          ? 'bg-white shadow text-indigo-600 font-medium'
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      cm
+                    </button>
+                    <button
+                      onClick={() => setMeasurementUnit('inches')}
+                      className={`flex-1 px-4 py-2 rounded-md transition-all ${
+                        measurementUnit === 'inches'
+                          ? 'bg-white shadow text-indigo-600 font-medium'
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      inches
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -238,15 +427,15 @@ export default function App() {
                   <div className="grid grid-cols-3 gap-4 pt-4 border-t">
                     <div>
                       <div className="text-sm text-gray-500">Shaping Rows</div>
-                      <div className="text-lg font-medium">{result.totalRowsUsed} / {Math.max(1, rows - 1)}</div>
+                      <div className="text-lg font-medium">{result.totalRowsUsed} / {Math.max(1, convertedRows - 1)}</div>
                     </div>
                     <div>
                       <div className="text-sm text-gray-500">Plain Rows</div>
-                      <div className="text-lg font-medium">{rows - result.totalRowsUsed}</div>
+                      <div className="text-lg font-medium">{convertedRows - result.totalRowsUsed}</div>
                     </div>
                     <div>
                       <div className="text-sm text-gray-500">Total Rows</div>
-                      <div className="text-lg font-medium">{rows}</div>
+                      <div className="text-lg font-medium">{convertedRows}</div>
                     </div>
                   </div>
                 </div>

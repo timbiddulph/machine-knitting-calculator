@@ -30,3 +30,14 @@ export interface CrewNeckResult {
 export type OperationType = 'decrease' | 'increase';
 export type DistributionType = 'early_extra' | 'late_extra';
 export type CalculationType = 'straight' | 'crew_neck';
+export type MeasurementUnit = 'cm' | 'inches';
+
+export interface GaugeSettings {
+  stitchesPerCm: number;
+  rowsPerCm: number;
+}
+
+export interface MeasurementInputs {
+  widthChange: number;
+  heightAvailable: number;
+}
